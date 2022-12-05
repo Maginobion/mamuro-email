@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+          }
+        }
+    </script>
+    <script type="module">
+        import { createApp } from 'vue'
+      
+        createApp({
+            data() {
+                return {
+                    messages: [],
+                    sortby: "Subject",
+                    order: "desc",
+                    search: "",
+                    selectedMessageCont: null,
+                    selectedMessageSubject: null,
+                    selectedMessageId: null,
+                    query: {},
+                    total: 0,
+                    page: 0,
+                    controller: new AbortController()
+                }
+            },
+            methods: {
+                async searchMails (page) {
+                    this.controller.abort()
+                    const url = 'http://localhost:4080/api/mails/_search'
+                    const username = 'admin'
+                    const password = 'Complexpass#123'
+                    const perPage = 20
+                    const headers = new Headers()
+                    this.controller = new AbortController()
+                    headers.set('Authorization', 'Basic ' + btoa(username + ":" + password))               
+
+                    let body = {
+                        "search_type":"matchphrase",
+                        "query":{
+                            "term": this.search
+                        },
+                        "from": page*perPage,
+                        "max_results": perPage
+                    }
+
+                    if(!this.search){
+                        body.search_type="alldocuments"
+                    }
+
+                    const data = await fetch(url, {
+                        method: 'POST',
+                        body: JSON.stringify(body),
+                        headers: headers,
+                        signal: this.controller.signal        
+                    }).then(res=>res.json())
+                    
+                    this.messages=data.hits.hits
+
+                    this.total=data.hits.total.value
+
+                    console.log(data)
+                },
+                setNewPage(newPage){
+                    this.page = newPage
+                    this.selectedMessageId = null
+                    this.selectedMessageCont = null
+                    this.selectedMessageSubject = null
+                    this.searchMails(newPage)
+                },
+                setContent(mail){
+                    const src = mail._source
+                    this.selectedMessageId=mail._id
+                    this.selectedMessageCont=src.Content
+                    this.selectedMessageSubject=src.Subject
+                },
+                setSort(field){
+                    if(this.sortby===field) this.order==="asc" ? this.order="desc" : this.order="asc"
+                    else {
+                        this.sortby=field
+                        this.order="desc"
+                    }
+                },
+                classObject(message) {
+                    return {
+                        'bg-lime-200': message?._id === this.selectedMessageId,
+                        'hover:bg-slate-200': true
+                    }
+                },
+                sorting(a,b){
+                    const arr = this.order == "asc" ? [-1,1] : [1,-1]
+                    return a._source[this.sortby].toLowerCase() > b._source[this.sortby].toLowerCase() ? arr[0] : arr[1]
+                }
+            },
+            watch:{
+                search(){
+                    this.selectedMessageCont=null
+                    this.selectedMessageSubject=null
+                    this.page=0
+                    this.searchMails()
+                }
+            },
+            computed: {
+                sortedMessages(){
+                    const arr = [...this.messages]
+                    
+                    return arr.sort((a,b)=>this.sorting(a,b))
+                },
+                totalPages(){
+                    const res = this.total / 20
+                    return Math.ceil(res)
+                }
+            },
+            mounted() {
+                this.searchMails()
+            },
+        }).mount('#app')
+      </script>
+    <title>Mamuro Email</title>
+</head>
+<body>
+    <div id="app">
+        <header class="p-8 bg-lime-200 text-2xl">
+            <span class="text-lime-800">♣</span> Mamuro Email
+        </header>
+        <main class="p-4">
+            <input 
+                class="border border-slate-300 w-full px-2 py-1 rounded-md" 
+                type="text" 
+                placeholder="Ingrese un término de búsqueda"
+                v-model=search
+            >
+            <div class="grid grid-cols-2 mt-4 h-[80vh]">
+                <div>
+                    <table class="block table-fixed w-full border overflow-auto h-[72vh]">
+                        <thead class="text-md">
+                            <th class="border font-normal hover:bg-slate-200" @click="setSort('Subject')">
+                                Subject 
+                                <span v-if="sortby==='Subject' && order==='asc'"> ˄ </span>
+                                <span v-else-if="sortby==='Subject'"> ˅ </span>
+                            </th>
+                            <th class="border font-normal hover:bg-slate-200" @click="setSort('Sender')">
+                                From
+                                <span v-if="sortby==='Sender' && order==='asc'"> ˄ </span>
+                                <span v-else-if="sortby==='Sender'"> ˅ </span>
+                            </th>
+                            <th class="border font-normal hover:bg-slate-200" @click="setSort('Receiver')">
+                                To
+                                <span v-if="sortby==='Receiver' && order==='asc'"> ˄ </span>
+                                <span v-else-if="sortby==='Receiver'"> ˅ </span>
+                            </th>
+                        </thead>
+                        <tbody v-if="sortedMessages.length>0">
+                            <tr 
+                                v-for="message in sortedMessages" 
+                                @click="setContent(message)"
+                                :class="classObject(message)" 
+                            >
+                                <td class="p-2">{{message._source?.Subject}}</td>
+                                <td class="p-2">{{message._source?.Sender}}</td>
+                                <td class="p-2">{{message._source?.Receiver}}</td>
+                            </tr>
+                        </tbody>
+                        <tbody v-else>
+                            <tr>
+                                <td>No existen resultados</td>
+                                <td>No existen resultados</td>
+                                <td>No existen resultados</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="flex justify-center space-x-4 mt-4">
+                        <button
+                            @click="setNewPage(page-1)"
+                            :disabled="page<=0"
+                            class="border text-slate-800 px-4 py-2 rounded-md hover:bg-lime-100 disabled:bg-slate-400"
+                        >
+                            Anterior
+                        </button>
+                        <button 
+                            @click="setNewPage(page+1)"
+                            :disabled="page+1>=totalPages"
+                            class="border text-slate-800 px-4 py-2 rounded-md hover:bg-lime-100 disabled:bg-slate-400"                           
+                        >
+                            Siguiente
+                        </button>                        
+                    </div>
+                    <p class="text-center mt-2 text-slate-800">Página {{page+1}} de {{totalPages}}</p>
+                </div>
+                <div v-if="selectedMessageCont!==null"  class="px-3 max-h-[80vh]">
+                    <p class="pb-2">Subject: {{selectedMessageSubject}}</p>
+                    <p class="whitespace-pre overflow-auto p-4 border h-[78vh]">{{selectedMessageCont}}</p>
+                </div>
+                <div v-else class="overflow-auto p-4 max-h-[80vh]">
+                    <p>Seleccione un correo para visualizarlo</p>
+                </div>
+            </div>
+            
+        </main>       
+    </div>
+</body>
+</html>

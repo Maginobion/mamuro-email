@@ -5,3 +5,8 @@ enron_mail*
 LICENSE
 README.md
 zinc_linux.tar.gz
+indexer/data.json
+bin/zinc
+*.prof
+*.test
+*.bench
