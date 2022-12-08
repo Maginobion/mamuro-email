@@ -1,12 +1,14 @@
 #!/bin/bash
 
 function pushvalue () {
+
 	content="$(cat $1)"
 
 	validjson=$(echo "$content" | jq -Rsa)
 
 	from="Unknown"
 	to="Unknown"
+	subject="\"Unknown\""
 	grepping=$(grep -i -o '[A-Z0-9._%+-]\+@[A-Z0-9.-]\+\.[A-Z]\{2,4\}' $1)
 
 	greparr=($grepping)
@@ -19,14 +21,22 @@ function pushvalue () {
 		to=${greparr[1]}
 	fi
 
-	path=$1
+	subjectgrepping=$(grep -i -o 'Subject:[[:space:]][A-Z[:space:]0-9._%+-:&]\+' $1)
 
-	readarray -d / -t strarr <<< "$path"
+	subjectgreparr=($subjectgrepping)
+
+	echo ${subjectgreparr[4]}
+
+	if [[ ${#subjectgreparr[@]} > 2 ]]; then
+		subject=$(echo "${subjectgrepping:9}" | jq -Rsaj | head -c-5)"\""
+	fi
+
+	readarray -d / -t strarr <<< "$1"
 
 	user="${strarr[2]}" 
 	category="${strarr[3]}"	
 
-	wholejson="{\"User\":\"${user}\",\"Sender\":\"${from}\",\"Receiver\":\"${to}\",\"Category\":\"${category}\",\"content\":${validjson}},"
+	wholejson="{\"User\":\"${user}\",\"Sender\":\"${from}\",\"Receiver\":\"${to}\",\"Subject\":${subject},\"Category\":\"${category}\",\"Content\":${validjson}},"
 	
 	echo $wholejson >> newdata.json
 }
@@ -39,7 +49,6 @@ function searchinside () {
 		if [[ -d $filename ]]; then
 			searchinside $filename
 		elif [[ -f $filename ]]; then
-			echo $filename
 			pushvalue $filename
 		fi
 	done
@@ -50,8 +59,6 @@ function buildjson () {
 	searchinside $1
 	echo '{}]}' >> newdata.json; 
 }
-
-sudo apt-get install jq
 
 rm newdata.json
 

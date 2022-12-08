@@ -10,3 +10,6 @@ bin/zinc
 *.prof
 *.test
 *.bench
+.terraform
+.terraform.lock.hcl
+*.tf
