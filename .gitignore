@@ -13,3 +13,5 @@ bin/zinc
 .terraform
 .terraform.lock.hcl
 *.tf
+terraform.*
+*.ndjson
