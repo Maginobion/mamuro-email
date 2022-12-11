@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,7 +17,7 @@ func check(e error) {
 	}
 }
 
-var JSONname = "data.json"
+var JSONname = "data.ndjson"
 
 func getJSON(path string) []byte {
 
@@ -107,14 +108,25 @@ func searchInside(path string) {
 
 			check(err)
 
+			w := bufio.NewWriter(f)
+
 			//Write the JSON-parsed content
 
-			_, err = f.Write(append(getJSON(path+"/"+item.Name()), []byte(",")...))
+			_, err = w.WriteString("{\"index\":{\"_index\":\"mails\"}}\n\r")
+
+			check(err)
+
+			// _, err = f.WriteString("{\"index\":{\"_index\":\"mails\"}}\r\n")
+
+			// check(err)
+
+			_, err = w.Write(append(getJSON(path+"/"+item.Name()), []byte("\n\r")...))
 
 			check(err)
 
 			//Write a comma at the end and close the file
 
+			w.Flush()
 			f.Close()
 		}
 	}
@@ -145,9 +157,9 @@ func main() {
 
 	//Push initial JSON structure
 
-	startingjson := "{\"index\":\"mails\",\"records\":["
+	// startingjson := "{\"index\":\"mails\",\"records\":["
 
-	f.WriteString(startingjson)
+	// f.WriteString(startingjson)
 
 	f.Close()
 
@@ -155,28 +167,26 @@ func main() {
 
 	searchInside(fileArg)
 
-	//After all files pushed into the JSON, close the JSON structure
+	// After all files pushed into the JSON, close the JSON structure
 
-	f, err = os.OpenFile(JSONname, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	// f, err = os.OpenFile(JSONname, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 
-	check(err)
+	// check(err)
 
-	//Write a comma at the end and close the file
+	// Write a comma at the end and close the file
 
-	_, err = f.WriteString("{}]}")
+	// _, err = f.WriteString("{}]}")
 
-	f.Close()
+	// f.Close()
 
 	//Post the JSON into the localhost
 
-	localUrl := "http://localhost:4080/api/_bulkv2"
+	localUrl := "http://localhost:4080/api/_bulk"
 	includeFlag := "-i"
 	authFlag := "-u"
 	credentials := "admin:Complexpass#123"
 	mode := "--data-binary"
 	file := "@" + JSONname
-
-	fmt.Println(file)
 
 	cmd := exec.Command("curl", localUrl, includeFlag, authFlag, credentials, mode, file)
 
