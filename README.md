@@ -31,7 +31,7 @@ cd bin
 cd bin
 ./indexer enron_mail_20110402
 
-# You can use the go non-binary executable too
+# You can use the go non-binary program too
 cd indexer
 go run indexer.go enron_mail_20110402
 ```
@@ -39,8 +39,13 @@ go run indexer.go enron_mail_20110402
 3. Open Mamuro-email on desired port
 
 ```sh
+## Using the go binary
 cd chi-router
 ./mamuro -port 3000
+
+## Using the go program
+cd chi-router
+go run main.go -port 3000
 ```
 
 4. Open [localhost:3000](http://localhost:3000/) and start searching!
